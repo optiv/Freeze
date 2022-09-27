@@ -8,7 +8,7 @@ Freeze
 
 
 ### More Information
-If you want to learn more about the techniques utilized in this framework, please take a look at [SourceZero Blog]() 
+If you want to learn more about the techniques utilized in this framework, please take a look at [SourceZero Blog](https://www.optiv.com/insights/source-zero/blog/sacrificing-suspended-processes) 
 #
 
 ## Description
