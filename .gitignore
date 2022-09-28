@@ -17,3 +17,4 @@
 dist/
 .goreleaser.yaml
 .gitignore
+dist/

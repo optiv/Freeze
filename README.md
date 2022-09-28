@@ -80,6 +80,8 @@ Usage of ./Freeze:
         Name of output file (e.g. loader.exe or loader.dll). Depending on what file extension defined will determine if Freeze makes a dll or exe.
   -console
         Only for Binary Payloads - Generates verbose console information when the payload is executed. This will disable the hidden window feature.
+  -encrypt
+        Encrypts the shellcode using AES 256 encryption
   -export string
         For DLL Loaders Only - Specify a specific Export function for a loader to have.
   -process string

