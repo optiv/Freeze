@@ -42,7 +42,7 @@ func DLLfunction(export string) string {
 	if export != "" {
 		DLL.Variables["ExportFunction"] = `//export ` + export + `
 	func ` + export + `() {
-		Main()
+		Run()
 	}`
 	} else {
 		DLL.Variables["ExportFunction"] = ``
