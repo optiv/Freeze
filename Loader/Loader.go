@@ -5,6 +5,7 @@ import (
 	"Freeze/Utils"
 	"bytes"
 	"fmt"
+	"github.com/Binject/debug/pe"
 	"log"
 	"os"
 	"text/template"
@@ -35,18 +36,21 @@ var (
 	buffer bytes.Buffer
 )
 
-func DLLfunction(export string) string {
+func DLLfunctions(exports []string) string {
 	var buffer bytes.Buffer
 	DLL := &DLL{}
 	DLL.Variables = make(map[string]string)
-	if export != "" {
-		DLL.Variables["ExportFunction"] = `//export ` + export + `
-	func ` + export + `() {
-		Run()
-	}`
-	} else {
-		DLL.Variables["ExportFunction"] = ``
+	var dllStrings string
+	for _, export := range exports {
+		if export != "" {
+			dllStrings = dllStrings + `//export ` + export + `
+            func ` + export + `() {
+                Run()
+            }
+            `
+		}
 	}
+	DLL.Variables["ExportFunction"] = dllStrings
 	buffer.Reset()
 
 	DLLExportTemplate, err := template.New("DLL").Parse(Struct.DLL_Export())
@@ -60,7 +64,7 @@ func DLLfunction(export string) string {
 
 }
 
-func MainFunction(shellcodeencoded string, mode string, console bool, exportable string, sandbox bool, process string, encrypt bool, b64ciphertext string, b64key string, b64iv string) string {
+func MainFunction(shellcodeencoded string, mode string, console bool, exportables string, sandbox bool, process string, encrypt bool, b64ciphertext string, b64key string, b64iv string) string {
 	var buffer bytes.Buffer
 	Main := &Main{}
 	Main.Variables = make(map[string]string)
@@ -224,7 +228,7 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	}
 
 	if mode == "dll" {
-		Main.Variables["StartingFunction"] = exportable
+		Main.Variables["StartingFunction"] = exportables
 		Main.Variables["ImportC"] = `import "C"`
 	} else {
 		Main.Variables["StartingFunction"] = `func main(){`
@@ -364,10 +368,25 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	return buffer.String()
 }
 
-func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, export string, sandbox bool, process string, encrypt bool) string {
+func ExportsFromFile(file string) (exports []string, err error) {
+	dllFile, err := pe.Open(file)
+	if err != nil {
+		return
+	}
+	exps, err := dllFile.Exports()
+	if err != nil {
+		return
+	}
+	for _, export := range exps {
+		exports = append(exports, export.Name)
+	}
+	return
+}
+
+func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, exports []string, sandbox bool, process string, encrypt bool) string {
 	var exporttable string
 	if mode == "dll" {
-		exporttable = DLLfunction(export)
+		exporttable = DLLfunctions(exports)
 	} else {
 		exporttable = ""
 	}
