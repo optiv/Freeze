@@ -8,7 +8,6 @@ import (
 	"github.com/Binject/debug/pe"
 	"log"
 	"os"
-	"strings"
 	"text/template"
 )
 
@@ -384,23 +383,15 @@ func ExportsFromFile(file string) (exports []string, err error) {
 	return
 }
 
-func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, export string, sandbox bool, process string, encrypt bool) string {
-	var exporttables string
+func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, exports []string, sandbox bool, process string, encrypt bool) string {
+	var exporttable string
 	if mode == "dll" {
-		if strings.HasSuffix(export, ".dll") {
-			exports, err := ExportsFromFile(export)
-			if err != nil {
-				return ""
-			}
-			exporttables = DLLfunctions(exports)
-		} else {
-			exporttables = DLLfunctions([]string{export})
-		}
+		exporttable = DLLfunctions(exports)
 	} else {
-		exporttables = ""
+		exporttable = ""
 	}
 
-	code := MainFunction(shellcodeencoded, mode, console, exporttables, sandbox, process, encrypt, b64ciphertext, b64key, b64iv)
+	code := MainFunction(shellcodeencoded, mode, console, exporttable, sandbox, process, encrypt, b64ciphertext, b64key, b64iv)
 	os.MkdirAll(outFile+"fldr", os.ModePerm)
 	Utils.Writefile(outFile+"fldr/"+outFile+".go", code)
 	os.Chdir(outFile + "fldr")
