@@ -38,7 +38,7 @@ func CheckGarble() {
 	if _, err := os.Stat(cwd + "/.lib/garble"); err == nil {
 	} else {
 		fmt.Println("[!] Missing Garble... Downloading it now")
-		cmd = exec.Command(bin, "GOBIN="+cwd+"/.lib/", "go", "install", "mvdan.cc/garble@v0.7.2")
+		cmd = exec.Command(bin, "GOBIN="+cwd+"/.lib/", "go", "install", "mvdan.cc/garble@v0.9.1")
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
