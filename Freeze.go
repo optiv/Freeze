@@ -134,11 +134,12 @@ func main() {
 	} else {
 		mode = ".exe"
 	}
-	var exports []string
+	// Default DLL exports
+	var exports = []string{"DllRegisterServer", "DllGetClassObject", "DllUnregisterServer"}
 	if opt.export != "" {
 		if strings.HasSuffix(opt.export, ".dll") {
 			var err error
-			exports, err = Loader.ExportsFromFile(opt.export)
+			exports, err = Utils.ExportsFromFile(opt.export)
 			if err != nil {
 				log.Fatal("Error: Could not get Export table from given DLL file")
 			}
@@ -147,6 +148,7 @@ func main() {
 			exports = strings.Split(strings.ReplaceAll(opt.export, " ", ""), ",")
 			fmt.Println("[!] Added additional Export functions from given list: " + opt.export)
 		} else {
+			exports = []string{opt.export}
 			fmt.Println("[!] Added an additional Export function called: " + opt.export)
 		}
 	}

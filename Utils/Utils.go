@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/Binject/debug/pe"
 	"io"
 	"log"
 	crand "math/rand"
@@ -153,4 +154,21 @@ func CapLetter() string {
 
 	}
 	return string(b)
+}
+
+func ExportsFromFile(file string) (exports []string, err error) {
+	dllFile, err := pe.Open(file)
+	if err != nil {
+		return
+	}
+	exps, err := dllFile.Exports()
+	if err != nil {
+		return
+	}
+	for _, export := range exps {
+		if "Run" != export.Name {
+			exports = append(exports, export.Name)
+		}
+	}
+	return
 }

@@ -5,7 +5,6 @@ import (
 	"Freeze/Utils"
 	"bytes"
 	"fmt"
-	"github.com/Binject/debug/pe"
 	"log"
 	"os"
 	"text/template"
@@ -366,21 +365,6 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 		log.Fatal(err)
 	}
 	return buffer.String()
-}
-
-func ExportsFromFile(file string) (exports []string, err error) {
-	dllFile, err := pe.Open(file)
-	if err != nil {
-		return
-	}
-	exps, err := dllFile.Exports()
-	if err != nil {
-		return
-	}
-	for _, export := range exps {
-		exports = append(exports, export.Name)
-	}
-	return
 }
 
 func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b64iv string, outFile string, console bool, mode string, exports []string, sandbox bool, process string, encrypt bool) string {
