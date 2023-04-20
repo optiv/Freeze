@@ -14,6 +14,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -46,13 +48,68 @@ func options() *FlagOptions {
 
 func execute(opt *FlagOptions, name string, mode string) {
 	bin, _ := exec.LookPath("env")
-	var compiledname string
+	// var compiledname string
 	var cmd *exec.Cmd
-	if mode == "dll" {
-		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=1", "CC=x86_64-w64-mingw32-gcc", "CXX=x86_64-w64-mingw32-g++", "../.lib/garble", "-seed=random", "-literals", "build", "-o", ""+name+"", "-buildmode=c-shared")
-	} else {
-		cmd = exec.Command(bin, "GOPRIVATE=*", "GOOS=windows", "GOARCH=amd64", "../.lib/garble", "-literals", "-seed=random", "build", "-o", ""+name)
+
+	switch runtime.GOOS {
+	case "windows":
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		pre_code := `
+$env:GOPRIVATEB=go env GOPRIVATE;
+go env -w GOPRIVATE=*
+
+$env:GOOS="windows";
+$env:GOARCH="amd64";
+
+%s
+
+go env -w GOPRIVATE=$GOPRIVATEB;
+$env:GOPRIVATEB=$null
+			`
+		if mode == "dll" {
+			cmd_code := fmt.Sprintf("%s -seed=random -literals build -o \"%s\" -buildmode=c-shared",
+				filepath.Join(cwd, "..", ".lib", "garble.exe"),
+				name)
+
+			code := fmt.Sprintf(pre_code, cmd_code)
+			fmt.Printf("[+] Executed code:\n%s\n", code)
+
+			opt := strings.Join([]string{"-NonInteractive"}, " ")
+			cmd = exec.Command("powershell.exe", opt, code)
+		} else {
+			cmd_code := fmt.Sprintf("%s -seed=random -literals build -o \"%s\"",
+				filepath.Join(cwd, "..", ".lib", "garble.exe"),
+				name)
+
+			code := fmt.Sprintf(pre_code, cmd_code)
+			fmt.Printf("[+] Executed code:\n%s\n", code)
+
+			opt := strings.Join([]string{"-NonInteractive"}, " ")
+			cmd = exec.Command("powershell.exe", opt, code)
+		}
+	default:
+		if mode == "dll" {
+			cmd = exec.Command(bin,
+				"GOPRIVATE=\"*\"",
+				"GOOS=windows",
+				"GOARCH=amd64",
+				"CGO_ENABLED=1",
+				"CC=x86_64-w64-mingw32-gcc",
+				"CXX=x86_64-w64-mingw32-g++",
+				"../.lib/garble", "-seed=random", "-literals", "build", "-o", ""+name+"", "-buildmode=c-shared")
+		} else {
+			cmd = exec.Command(bin,
+				"GOPRIVATE='go*'",
+				"GOOS=windows",
+				"GOARCH=amd64",
+				"../.lib/garble", "-literals", "-seed=random", "build", "-o", ""+name)
+		}
 	}
+
 	fmt.Println("[*] Compiling Payload")
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -60,28 +117,32 @@ func execute(opt *FlagOptions, name string, mode string) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		fmt.Printf("%s: %s\n", err, stderr.String())
+		log.Printf("%s: %s\n", err, stderr.String())
 	}
+	fmt.Println(out.String())
+	fmt.Println(stderr.String())
+
 	os.Chdir("..")
-	os.Rename(name+"fldr/"+name, name)
+	os.Rename(filepath.Join(name+"fldr", name), name)
 	os.RemoveAll(name + "fldr/")
 	fmt.Println("[+] Payload " + name + " Compiled")
 
 	if opt.Sha == true {
-		Utils.Sha256(compiledname)
+		Utils.Sha256(name)
 	}
 }
 
 func main() {
-	fmt.Println(` 
-	___________                                    
-	\_   _____/______   ____   ____ ________ ____  
-	 |    __) \_  __ \_/ __ \_/ __ \\___   // __ \ 
-	 |     \   |  | \/\  ___/\  ___/ /    /\  ___/ 
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	fmt.Println(`
+	___________
+	\_   _____/______   ____   ____ ________ ____
+	 |    __) \_  __ \_/ __ \_/ __ \\___   // __ \
+	 |     \   |  | \/\  ___/\  ___/ /    /\  ___/
 	 \___  /   |__|    \___  >\___  >_____ \\___  >
-	     \/                \/     \/      \/    \/ 
+	     \/                \/     \/      \/    \/
 		 			(@Tyl0us)
-	Soon they will learn that revenge is a dish... best served COLD...				
+	Soon they will learn that revenge is a dish... best served COLD...
 		 `)
 	Utils.Version()
 	opt := options()
@@ -140,5 +201,4 @@ func main() {
 	fmt.Println("[!] Selected Process to Suspend: " + opt.process)
 	name := Loader.CompileFile(shellcodeencoded, b64ciphertext, b64key, b64iv, opt.outFile, opt.console, mode, opt.export, opt.sandbox, opt.process, opt.encrypt)
 	execute(opt, name, mode)
-
 }
