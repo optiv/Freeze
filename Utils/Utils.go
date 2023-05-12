@@ -19,15 +19,15 @@ import (
 	"time"
 )
 
-const garblePackage string = "mvdan.cc/garble@v0.9.3"
+const garblePackage string = "mvdan.cc/garble@latest"
 
 func Version() {
 	Version := runtime.Version()
 	Version = strings.Replace(Version, "go1.", "", -1)
 	VerNumb, _ := strconv.ParseFloat(Version, 64)
-	if VerNumb >= 18.1 {
+	if VerNumb >= 19.1 {
 	} else {
-		log.Fatal("Error: The version of Go is to old, please update to version 1.18.1 or later")
+		log.Fatal("Error: The version of Go is to old, please update to version 1.19.1 or later")
 	}
 }
 
@@ -47,6 +47,7 @@ func CheckGarble() {
 		fmt.Println("[+] Garble is present")
 	} else {
 		fmt.Println("[!] Missing Garble... Downloading it now")
+
 		switch runtime.GOOS {
 		case "windows":
 			pre_code := `
@@ -65,7 +66,7 @@ $env:GOBINB=$null
 			opt := strings.Join([]string{"-NonInteractive"}, " ")
 			cmd = exec.Command("powershell.exe", opt, code)
 		default:
-			cmd = exec.Command(bin, "GOBIN="+filepath.Join(cwd, ".lib"), "go", "install", "mvdan.cc/garble@v0.9.3")
+			cmd = exec.Command(bin, "GOBIN="+filepath.Join(cwd, ".lib"), "go", "install", garblePackage)
 		}
 
 		var out bytes.Buffer
