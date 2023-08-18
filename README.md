@@ -1,3 +1,8 @@
+# THIS REPOSITORY HAS BEEN ARCHIVED
+
+To view the latest version of Freeze or to submit an issue, reference https://github.com/Tylous/Freeze.
+
+
 <h1 align="center">
 <br>
 <img src=Screenshots/Freeze.jpg height="310" border="2px solid #555">
