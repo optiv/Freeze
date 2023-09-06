@@ -12,11 +12,14 @@ import (
 	crand "math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const garblePackage string = "mvdan.cc/garble@latest"
 
 func Version() {
 	Version := runtime.Version()
@@ -35,10 +38,37 @@ func CheckGarble() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	if _, err := os.Stat(cwd + "/.lib/garble"); err == nil {
+	garble := "garble"
+	if runtime.GOOS == "windows" {
+		garble = garble + ".exe"
+	}
+
+	if _, err := os.Stat(filepath.Join(cwd, ".lib", garble)); err == nil {
+		fmt.Println("[+] Garble is present")
 	} else {
 		fmt.Println("[!] Missing Garble... Downloading it now")
-		cmd = exec.Command(bin, "GOBIN="+cwd+"/.lib/", "go", "install", "mvdan.cc/garble@latest")
+
+		switch runtime.GOOS {
+		case "windows":
+			pre_code := `
+$env:GOBINB=$GOBIN;
+$env:GOBIN="%s";
+
+%s
+
+$env:GOBIN=$GOBINB;
+$env:GOBINB=$null
+			`
+			cmd_code := fmt.Sprintf("go install %s", garblePackage)
+			code := fmt.Sprintf(pre_code, filepath.Join(cwd, ".lib"), cmd_code)
+			fmt.Printf("[+] Executed code:\n%s\n", code)
+
+			opt := strings.Join([]string{"-NonInteractive"}, " ")
+			cmd = exec.Command("powershell.exe", opt, code)
+		default:
+			cmd = exec.Command(bin, "GOBIN="+filepath.Join(cwd, ".lib"), "go", "install", garblePackage)
+		}
+
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
@@ -47,6 +77,7 @@ func CheckGarble() {
 		if err != nil {
 			fmt.Printf("%s: %s\n", err, stderr.String())
 		}
+		fmt.Println(out.String(), stderr.String())
 	}
 }
 
@@ -114,18 +145,20 @@ func RandomBuffer(size int) []byte {
 	return buffer
 }
 
+var randomGen *crand.Rand = crand.New(crand.NewSource(time.Now().UnixNano()))
+
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letters[crand.Intn(len(letters))]
+		b[i] = letters[randomGen.Intn(len(letters))]
 
 	}
 	return string(b)
 }
+
 func VarNumberLength(min, max int) string {
 	var r string
-	crand.Seed(time.Now().UnixNano())
-	num := crand.Intn(max-min) + min
+	num := randomGen.Intn(max-min) + min
 	n := num
 	r = RandStringBytes(n)
 	return r
@@ -138,8 +171,7 @@ func printHexOutput(input ...[]byte) {
 }
 
 func GenerateNumer(min, max int) int {
-	crand.Seed(time.Now().UnixNano())
-	num := crand.Intn(max-min) + min
+	num := randomGen.Intn(max-min) + min
 	n := num
 	return n
 
@@ -149,7 +181,7 @@ func CapLetter() string {
 	n := 1
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = capletters[crand.Intn(len(capletters))]
+		b[i] = capletters[randomGen.Intn(len(capletters))]
 
 	}
 	return string(b)

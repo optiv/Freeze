@@ -18,3 +18,4 @@ dist/
 .goreleaser.yaml
 .gitignore
 dist/
+*fldr/

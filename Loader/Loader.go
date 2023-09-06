@@ -281,7 +281,7 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 		var (
 			debugWriter io.Writer
 		)
-		
+
 		func printDebug(format string, v ...interface{}) {
 			debugWriter = os.Stdout
 			output := fmt.Sprintf("[DEBUG] ")
@@ -361,6 +361,7 @@ func MainFunction(shellcodeencoded string, mode string, console bool, exportable
 	if err := ImplantTemplate.Execute(&buffer, Main); err != nil {
 		log.Fatal(err)
 	}
+
 	return buffer.String()
 }
 
@@ -373,9 +374,16 @@ func CompileFile(shellcodeencoded string, b64ciphertext string, b64key string, b
 	}
 
 	code := MainFunction(shellcodeencoded, mode, console, exporttable, sandbox, process, encrypt, b64ciphertext, b64key, b64iv)
-	os.MkdirAll(outFile+"fldr", os.ModePerm)
+	err := os.MkdirAll(outFile+"fldr", os.ModePerm)
+	if err != nil {
+		fmt.Println(err)
+	}
 	Utils.Writefile(outFile+"fldr/"+outFile+".go", code)
-	os.Chdir(outFile + "fldr")
+
+	err = os.Chdir(outFile + "fldr")
+	if err != nil {
+		fmt.Println(err)
+	}
 	fmt.Println("[+] Loader Compiled")
 	return outFile
 }
