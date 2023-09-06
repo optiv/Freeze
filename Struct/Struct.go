@@ -2,27 +2,11 @@ package Struct
 
 func DLL_Export() string {
 	return `
-	//export DllRegisterServer
-	func DllRegisterServer() {
-		Run()
-	}
-	
-	//export DllGetClassObject
-	func DllGetClassObject() {
-		Run()
-	}
-	
-	//export DllUnregisterServer
-	func DllUnregisterServer() {
-		Run()
-	}
-
 	{{.Variables.ExportFunction}}
 
 	func main(){
 
 	}
-
 
 	//export Run
 	func Run(){

